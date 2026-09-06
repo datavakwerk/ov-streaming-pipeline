@@ -5,4 +5,6 @@ arrival predictions (OVapi GTFS-realtime) through Kafka (Redpanda), computes rol
 delay aggregates per line and station in 5-minute tumbling windows, and serves them in a
 live dashboard with a map of current delays.
 
+![ci](https://img.shields.io/badge/ci-lint%20%2B%20pytest-blue)
+
 🚧 Work in progress — see [PRD.md](PRD.md) for goals, architecture and Definition of Done.

@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV      ?= uv
 COMPOSE ?= docker compose
 
-.PHONY: help install lint fmt test test-integration
+.PHONY: help install lint fmt test test-integration ci
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -26,3 +26,5 @@ test:  ## Unit tests (no broker, no database, no live feed - PRD N3)
 
 test-integration:  ## Integration tests against the running compose stack
 	$(UV) run pytest -m integration
+
+ci: lint test  ## Exactly what the CI workflow runs, locally
