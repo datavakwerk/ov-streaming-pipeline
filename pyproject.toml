@@ -48,6 +48,7 @@ allowed-confusables = ["–", "−", "→", "·", "≈", "≤"]
 # HTML/CSS/PromQL fragments read better on one line than wrapped.
 "dashboard/src/dashboard/app.py" = ["E501"]
 "observability/grafana/build_dashboard.py" = ["E501"]
+"scripts/throughput.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["common", "producer", "processor", "archiver", "gtfs_static", "dashboard"]

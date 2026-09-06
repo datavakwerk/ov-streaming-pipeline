@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV      ?= uv
 COMPOSE ?= docker compose
 
-.PHONY: help install lint fmt test test-integration ci up down nuke logs ps topics psql open dlq-peek inject-bad
+.PHONY: help install lint fmt test test-integration ci up down nuke logs ps topics psql open dlq-peek inject-bad replay replay-dlq throughput
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -62,7 +62,8 @@ psql:  ## Open psql against the pipeline database
 dlq-peek:  ## Show the newest messages on the DLQ topics with their error headers
 	@for t in dlq.vehicle_positions dlq.arrival_predictions; do \
 		echo "== $$t"; \
-		$(COMPOSE) exec -T redpanda rpk topic consume $$t -n 3 -o -3 -f '%p@%o key=%k headers=%h\n' 2>/dev/null || true; \
+		$(COMPOSE) exec -T redpanda rpk topic consume $$t -n 3 -o -3 --format json 2>/dev/null \
+		| uv run python scripts/dlq_peek.py || true; \
 	done
 
 inject-bad:  ## Publish a malformed message to arrival_predictions to demo the DLQ path
@@ -70,6 +71,17 @@ inject-bad:  ## Publish a malformed message to arrival_predictions to demo the D
 		| $(COMPOSE) exec -T redpanda rpk topic produce arrival_predictions -k demo-bad
 	@echo 'this is not even json' | $(COMPOSE) exec -T redpanda rpk topic produce vehicle_positions -k demo-bad
 	@echo "published 2 poison messages; watch: make dlq-peek"
+
+# FROM/TO are UTC ISO timestamps, e.g. make replay FROM=2026-09-06T20:00 TO=2026-09-06T21:00
+replay:  ## Recompute windows from the MinIO raw archive for a time range (FROM=... TO=...)
+	@test -n "$(FROM)" -a -n "$(TO)" || (echo "usage: make replay FROM=<utc iso> TO=<utc iso>"; exit 1)
+	$(COMPOSE) run --rm --no-deps processor ov-replay archive --from $(FROM) --to $(TO)
+
+replay-dlq:  ## Re-decode dead letters with the current parser and re-inject the fixable ones
+	$(COMPOSE) run --rm --no-deps processor ov-replay dlq $(ARGS)
+
+throughput:  ## Print measured throughput/lag numbers from Prometheus (for the README)
+	@uv run python scripts/throughput.py
 
 open:  ## Open the dashboard in the browser
 	open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501
