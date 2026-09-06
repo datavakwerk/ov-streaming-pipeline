@@ -211,7 +211,31 @@ services:
       retries: 5
       start_period: 20s
 
-  # dashboard: added in commit 10.
+  dashboard:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: infra/docker/service.Dockerfile
+      args: { PACKAGE: ov-dashboard, SERVICE_DIR: dashboard }
+    command:
+      - streamlit
+      - run
+      - /app/dashboard/src/dashboard/app.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+    working_dir: /app/dashboard
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ------------------------------------------------------------------ observability
   # prometheus, grafana: added in ops phase (post commit 10).
@@ -387,7 +411,31 @@ volumes:
       retries: 5
       start_period: 20s
 
-  # dashboard: added in commit 10.
+  dashboard:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: infra/docker/service.Dockerfile
+      args: { PACKAGE: ov-dashboard, SERVICE_DIR: dashboard }
+    command:
+      - streamlit
+      - run
+      - /app/dashboard/src/dashboard/app.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+    working_dir: /app/dashboard
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ------------------------------------------------------------------ observability
   prometheus:
