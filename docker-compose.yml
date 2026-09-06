@@ -129,7 +129,28 @@ services:
     restart: "no"
 
   # ------------------------------------------------------------------ services
-  # producer, archiver, gtfs-static, processor, dashboard: added in commits 5-10.
+  producer:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: infra/docker/service.Dockerfile
+      args: { PACKAGE: ov-producer, SERVICE_DIR: producer }
+    command: ["ov-producer"]
+    environment:
+      METRICS_PORT: "9101"
+    ports:
+      - "9101:9101"
+    depends_on:
+      redpanda: { condition: service_healthy }
+      topic-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9101/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # archiver, gtfs-static, processor, dashboard: added in commits 6-10.
 
   # ------------------------------------------------------------------ observability
   # prometheus, grafana: added in ops phase (post commit 10).

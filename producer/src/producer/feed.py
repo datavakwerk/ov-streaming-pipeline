@@ -1,7 +1,10 @@
 """Polite HTTP client for the OVapi GTFS-RT endpoints.
 
-Conditional GETs (ETag / If-Modified-Since) mean an unchanged feed costs a 304 and no bytes,
-which matters at a 10 s poll interval against a public, free service.
+Measured 2026-09-06: both files regenerate about once per minute (Last-Modified steps by 60 s),
+the server ignores ``If-None-Match`` / ``If-Modified-Since`` (always 200), and it answers
+HTTP 429 when polled too eagerly. So: sensible intervals (20 s / 60 s), validators sent anyway
+in case they start being honored, gzip accepted, and 429 surfaced as :class:`RateLimited` so
+the caller can back off.
 """
 
 from __future__ import annotations
@@ -23,6 +26,12 @@ class FeedResponse:
     status: int
     elapsed_s: float
     etag: str | None = None
+
+
+class RateLimited(httpx.HTTPError):
+    def __init__(self, retry_after_s: float | None):
+        super().__init__("rate limited (HTTP 429)")
+        self.retry_after_s = retry_after_s
 
 
 @dataclass(slots=True)
@@ -49,6 +58,9 @@ class FeedClient:
         elapsed = response.elapsed.total_seconds()
         if response.status_code == 304:
             return FeedResponse(body=None, status=304, elapsed_s=elapsed)
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+            raise RateLimited(float(retry_after) if retry_after and retry_after.isdigit() else None)
         response.raise_for_status()
         validators: dict[str, str] = {}
         if etag := response.headers.get("ETag"):
