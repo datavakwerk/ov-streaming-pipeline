@@ -1,8 +1,19 @@
 [project]
 name = "ov-processor"
 version = "0.1.0"
+description = "Kafka consumer computing 5-minute tumbling-window delay aggregates with an idempotent Postgres sink and a DLQ"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "ov-common",
+    "confluent-kafka>=2.5",
+    "psycopg[binary]>=3.2",
+    "boto3>=1.35",
+    "prometheus-client>=0.21",
+]
+
+[project.scripts]
+ov-processor = "processor.main:main"
+ov-replay = "processor.replay:main"
 
 [build-system]
 requires = ["hatchling"]
