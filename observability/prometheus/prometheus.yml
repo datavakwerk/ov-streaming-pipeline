@@ -1,0 +1,20 @@
+# Scrape every service's /metrics plus Redpanda's public metrics. 10 s interval: the dashboards
+# are meant to be watched live, and the cardinality is tiny.
+global:
+  scrape_interval: 10s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: producer
+    static_configs: [{ targets: ["producer:9101"] }]
+  - job_name: processor
+    static_configs: [{ targets: ["processor:9102"] }]
+  - job_name: archiver
+    static_configs: [{ targets: ["archiver:9103"] }]
+  - job_name: gtfs-static
+    static_configs: [{ targets: ["gtfs-static:9104"] }]
+  - job_name: redpanda
+    metrics_path: /public_metrics
+    static_configs: [{ targets: ["redpanda:9644"] }]
+  - job_name: prometheus
+    static_configs: [{ targets: ["localhost:9090"] }]
