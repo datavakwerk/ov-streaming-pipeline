@@ -1,8 +1,17 @@
 [project]
 name = "ov-archiver"
 version = "0.1.0"
+description = "Archives raw Kafka messages to MinIO, partitioned by topic/date/hour, for replay"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "ov-common",
+    "confluent-kafka>=2.5",
+    "boto3>=1.35",
+    "prometheus-client>=0.21",
+]
+
+[project.scripts]
+ov-archiver = "archiver.main:main"
 
 [build-system]
 requires = ["hatchling"]
