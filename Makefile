@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV      ?= uv
 COMPOSE ?= docker compose
 
-.PHONY: help install lint fmt test test-integration ci up down logs ps topics psql open
+.PHONY: help install lint fmt test test-integration ci up down nuke logs ps topics psql open dlq-peek inject-bad
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -58,6 +58,18 @@ topics:  ## List topics with partition/offset info
 
 psql:  ## Open psql against the pipeline database
 	$(COMPOSE) exec postgres psql -U $${POSTGRES_USER:-ov} -d $${POSTGRES_DB:-ov}
+
+dlq-peek:  ## Show the newest messages on the DLQ topics with their error headers
+	@for t in dlq.vehicle_positions dlq.arrival_predictions; do \
+		echo "== $$t"; \
+		$(COMPOSE) exec -T redpanda rpk topic consume $$t -n 3 -o -3 -f '%p@%o key=%k headers=%h\n' 2>/dev/null || true; \
+	done
+
+inject-bad:  ## Publish a malformed message to arrival_predictions to demo the DLQ path
+	@echo '{"type":"arrival_prediction","schema_version":1,"trip_id":"demo","delay_seconds":"soon"}' \
+		| $(COMPOSE) exec -T redpanda rpk topic produce arrival_predictions -k demo-bad
+	@echo 'this is not even json' | $(COMPOSE) exec -T redpanda rpk topic produce vehicle_positions -k demo-bad
+	@echo "published 2 poison messages; watch: make dlq-peek"
 
 open:  ## Open the dashboard in the browser
 	open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501

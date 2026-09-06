@@ -4,8 +4,14 @@ Semantics
 ---------
 * Windows are ``window_s`` wide, aligned to the epoch: ``start = floor(t / window_s) * window_s``.
   An event exactly on a boundary belongs to the window that *starts* there ([start, end)).
-* **Watermark** = max event time seen - ``allowed_lateness_s``. A window is finalized (emitted
-  once, then forgotten) as soon as the watermark reaches its end.
+* **Watermark** = min over *active sources* of (max event time seen on that source)
+  - ``allowed_lateness_s``. A source is a Kafka partition: partitions are consumed at slightly
+  different speeds (very different during catch-up or replay), so a single global max would
+  declare a slower partition's perfectly good events "late". Taking the minimum is what Flink
+  does with per-partition watermarks. A source that produced nothing for ``idle_source_s`` is
+  excluded until it speaks again (Flink's idleness timeout), so one quiet partition cannot stall
+  the whole pipeline. A window is finalized (emitted once, then forgotten) as soon as the
+  watermark reaches its end.
 * Events whose window has already been finalized are **late**: counted, dropped. This is the
   documented trade-off (PRD §5.2): bounded state and a single emission per window, in exchange
   for ignoring anything more than ``allowed_lateness_s`` behind the stream.
@@ -17,7 +23,8 @@ Semantics
 
 from __future__ import annotations
 
-from collections.abc import Hashable
+import time
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -39,14 +46,22 @@ class WindowStats:
     finalized: int = 0
 
 
+DEFAULT_SOURCE = "default"
+
+
 @dataclass
 class TumblingWindower:
     window_s: int = 300
     allowed_lateness_s: int = 120
+    idle_source_s: float = 120.0
     watermark: datetime | None = None
     stats: WindowStats = field(default_factory=WindowStats)
+    clock: Callable[[], float] = time.monotonic
     _open: dict[WindowKey, Accumulator] = field(default_factory=dict, init=False, repr=False)
-    _max_event_time: datetime | None = field(default=None, init=False)
+    # source -> (max event time seen on it, when we last heard from it, in clock() seconds)
+    _sources: dict[Hashable, tuple[datetime, float]] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     # ----------------------------------------------------------------- ingest
     def add(
@@ -58,6 +73,7 @@ class TumblingWindower:
         *,
         operator: str | None = None,
         dedupe_key: Hashable | None = None,
+        source: Hashable = DEFAULT_SOURCE,
     ) -> bool:
         """Route one observation into its window. Returns False if late or duplicate."""
         start = window_start_for(event_time, self.window_s)
@@ -73,15 +89,31 @@ class TumblingWindower:
             self.stats.duplicates += 1
             return False
         self.stats.accepted += 1
-        if self._max_event_time is None or event_time > self._max_event_time:
-            self._max_event_time = event_time
-            self._raise_watermark(event_time - timedelta(seconds=self.allowed_lateness_s))
+        self._observe_source(source, event_time)
         return True
 
     # ------------------------------------------------------------- watermark
+    def _observe_source(self, source: Hashable, event_time: datetime) -> None:
+        now = self.clock()
+        previous = self._sources.get(source)
+        self._sources[source] = (
+            event_time if previous is None or event_time > previous[0] else previous[0],
+            now,
+        )
+        self._recompute_watermark(now)
+
+    def _recompute_watermark(self, now: float) -> None:
+        active = [t for t, seen in self._sources.values() if now - seen <= self.idle_source_s]
+        if active:
+            self._raise_watermark(min(active) - timedelta(seconds=self.allowed_lateness_s))
+
     def _raise_watermark(self, candidate: datetime) -> None:
         if self.watermark is None or candidate > self.watermark:
             self.watermark = candidate
+
+    def active_sources(self) -> int:
+        now = self.clock()
+        return sum(1 for _, seen in self._sources.values() if now - seen <= self.idle_source_s)
 
     def advance_to(self, now: datetime) -> None:
         """Idle-time watermark: pretend an event at ``now`` arrived, without adding data."""

@@ -1,0 +1,12 @@
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+.ruff_cache
+data
+docs
+*.md
+!README.md
+.env
+.env.example
+observability/grafana/data

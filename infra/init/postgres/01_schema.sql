@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 CREATE TABLE IF NOT EXISTS delay_aggregates (
     window_start   timestamptz NOT NULL,
     window_end     timestamptz NOT NULL,
-    dimension      text        NOT NULL CHECK (dimension IN ('line', 'station')),
+    dimension      text        NOT NULL CHECK (dimension IN ('line', 'station', 'operator', 'network')),
     dimension_id   text        NOT NULL,
     operator       text,
     event_count    integer     NOT NULL,

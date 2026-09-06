@@ -5,6 +5,8 @@ description = "Kafka consumer computing 5-minute tumbling-window delay aggregate
 requires-python = ">=3.12"
 dependencies = [
     "ov-common",
+    "ov-archiver",
+    "ov-producer",
     "confluent-kafka>=2.5",
     "psycopg[binary]>=3.2",
     "boto3>=1.35",

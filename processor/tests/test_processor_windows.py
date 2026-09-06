@@ -108,3 +108,39 @@ def test_finalized_windows_come_out_in_time_order():
     w.advance_to(at(5000))
     starts = [a.key.window_start for a in w.pop_finalized()]
     assert starts == sorted(starts) == [T0, at(300), at(600)]
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+
+    def __call__(self):
+        return self.t
+
+
+def test_watermark_follows_the_slowest_active_partition():
+    w = TumblingWindower(300, allowed_lateness_s=0, clock=FakeClock())
+    w.add(at(1000), "line", "L1", 1, source=("p", 0))  # partition 0 is far ahead
+    assert w.watermark == at(1000)
+    w.add(at(100), "line", "L1", 1, source=("p", 1))  # partition 1 lags: window [0,300) still open
+    assert w.watermark == at(1000)  # never moves backwards ...
+    w2 = TumblingWindower(300, allowed_lateness_s=0, clock=FakeClock())
+    w2.add(at(100), "line", "L1", 1, source=("p", 1))
+    w2.add(at(1000), "line", "L1", 1, source=("p", 0))
+    assert w2.watermark == at(100)  # ... but with both sources known, the minimum rules
+    assert w2.add(at(50), "line", "L1", 1, source=("p", 1)) is True  # not late on the slow one
+    assert w2.stats.late == 0
+
+
+def test_idle_partition_stops_holding_the_watermark_back():
+    clock = FakeClock()
+    w = TumblingWindower(300, allowed_lateness_s=0, idle_source_s=60, clock=clock)
+    w.add(at(100), "line", "L1", 1, source=("p", 1))
+    w.add(at(1000), "line", "L1", 1, source=("p", 0))
+    assert w.watermark == at(100) and w.active_sources() == 2
+    clock.t = 61  # partition 1 said nothing for over a minute
+    w.add(at(1001), "line", "L1", 1, source=("p", 0))
+    assert w.watermark == at(1001) and w.active_sources() == 1
+    clock.t = 62
+    w.add(at(400), "line", "L1", 1, source=("p", 1))  # it speaks again, behind: counted late
+    assert w.stats.late == 1
