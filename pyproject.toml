@@ -1,0 +1,54 @@
+# Workspace root: one Python toolchain, one lockfile, one package per service.
+# Streaming repos rot fast when each service grows its own toolchain (COMMITS.md, commit 1).
+[project]
+name = "ov-streaming-pipeline"
+version = "0.1.0"
+description = "Real-time NL public transport delay pipeline: OVapi GTFS-RT -> Redpanda -> windowed aggregates -> Postgres -> live dashboard"
+requires-python = ">=3.12"
+dependencies = [
+    "ov-common",
+    "ov-producer",
+    "ov-processor",
+    "ov-archiver",
+    "ov-gtfs-static",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["common", "producer", "processor", "archiver", "gtfs-static", "dashboard"]
+
+[tool.uv.sources]
+ov-common = { workspace = true }
+ov-producer = { workspace = true }
+ov-processor = { workspace = true }
+ov-archiver = { workspace = true }
+ov-gtfs-static = { workspace = true }
+ov-dashboard = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["data", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["common", "producer", "processor", "archiver", "gtfs_static", "dashboard"]
+
+[tool.pytest.ini_options]
+testpaths = ["common/tests", "producer/tests", "processor/tests", "archiver/tests", "gtfs-static/tests", "dashboard/tests"]
+markers = [
+    "integration: needs a running Postgres/Redpanda/MinIO (skipped in CI, see PRD N3)",
+]
+addopts = "-ra"
