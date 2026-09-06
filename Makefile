@@ -22,10 +22,11 @@ fmt:  ## ruff format + autofix
 	$(UV) run ruff format .
 
 test:  ## Unit tests (no broker, no database, no live feed - PRD N3)
-	$(UV) run pytest -m "not integration"
+	$(UV) run pytest
 
 test-integration:  ## Integration tests against the running compose stack
-	$(UV) run pytest -m integration
+	POSTGRES_PORT=$${POSTGRES_HOST_PORT:-5433} KAFKA_BOOTSTRAP_SERVERS=localhost:19092 \
+	MINIO_ENDPOINT=http://localhost:$${MINIO_API_PORT:-9010} $(UV) run pytest -m integration -o addopts=""
 
 ci: lint test  ## Exactly what the CI workflow runs, locally
 

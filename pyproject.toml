@@ -51,4 +51,4 @@ testpaths = ["common/tests", "producer/tests", "processor/tests", "archiver/test
 markers = [
     "integration: needs a running Postgres/Redpanda/MinIO (skipped in CI, see PRD N3)",
 ]
-addopts = "-ra"
+addopts = "-ra -m 'not integration'"

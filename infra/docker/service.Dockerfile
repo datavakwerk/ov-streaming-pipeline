@@ -30,5 +30,5 @@ COPY common common
 COPY ${SERVICE_DIR} ${SERVICE_DIR}
 RUN uv sync --frozen --no-dev --package ${PACKAGE}
 
-RUN useradd --system --uid 1001 app && chown -R app:app /app
+RUN useradd --system --uid 1001 app && mkdir -p /cache && chown -R app:app /app /cache
 USER app

@@ -1,8 +1,17 @@
 [project]
 name = "ov-gtfs-static"
 version = "0.1.0"
+description = "Loads static GTFS reference data (agencies, routes, stops, trips) into Postgres"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "ov-common",
+    "httpx>=0.27",
+    "psycopg[binary]>=3.2",
+    "prometheus-client>=0.21",
+]
+
+[project.scripts]
+ov-gtfs-static = "gtfs_static.main:main"
 
 [build-system]
 requires = ["hatchling"]

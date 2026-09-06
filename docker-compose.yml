@@ -172,7 +172,24 @@ services:
       retries: 5
       start_period: 20s
 
-  # gtfs-static, processor, dashboard: added in commits 7-10.
+  gtfs-static:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: infra/docker/service.Dockerfile
+      args: { PACKAGE: ov-gtfs-static, SERVICE_DIR: gtfs-static }
+    command: ["ov-gtfs-static"]
+    environment:
+      METRICS_PORT: "9104"
+      GTFS_CACHE_DIR: /cache
+    ports:
+      - "9104:9104"
+    volumes:
+      - gtfs-cache:/cache
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # processor, dashboard: added in commits 9-10.
 
   # ------------------------------------------------------------------ observability
   # prometheus, grafana: added in ops phase (post commit 10).
@@ -181,3 +198,4 @@ volumes:
   redpanda-data:
   postgres-data:
   minio-data:
+  gtfs-cache:
