@@ -1,1 +1,1 @@
-"""common package of the NL OV streaming pipeline."""
+"""Shared event contract, serde and helpers for the NL OV streaming pipeline."""

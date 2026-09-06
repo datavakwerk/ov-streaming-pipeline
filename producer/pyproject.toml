@@ -1,8 +1,19 @@
 [project]
 name = "ov-producer"
 version = "0.1.0"
+description = "Polls the OVapi GTFS-RT feed, parses it into versioned events and publishes them to Kafka"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "ov-common",
+    "gtfs-realtime-bindings>=1.0.0",
+    "protobuf>=4.25",
+    "httpx>=0.27",
+    "confluent-kafka>=2.5",
+    "prometheus-client>=0.21",
+]
+
+[project.scripts]
+ov-producer = "producer.main:main"
 
 [build-system]
 requires = ["hatchling"]

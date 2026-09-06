@@ -1,8 +1,11 @@
 [project]
 name = "ov-common"
 version = "0.1.0"
+description = "Shared event contract, serde and config helpers for the NL OV streaming pipeline"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "prometheus-client>=0.21",
+]
 
 [build-system]
 requires = ["hatchling"]
