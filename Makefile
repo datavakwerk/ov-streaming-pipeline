@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV      ?= uv
 COMPOSE ?= docker compose
 
-.PHONY: help install lint fmt test test-integration ci
+.PHONY: help install lint fmt test test-integration ci up down logs ps topics psql open
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -28,3 +28,39 @@ test-integration:  ## Integration tests against the running compose stack
 	$(UV) run pytest -m integration
 
 ci: lint test  ## Exactly what the CI workflow runs, locally
+
+# ---------------------------------------------------------------- stack
+up: .env  ## Build + start the full stack and wait until every service is healthy
+	$(COMPOSE) up -d --build --wait --wait-timeout 300
+	@echo
+	@echo "  Dashboard        http://localhost:8501"
+	@echo "  Grafana          http://localhost:3000   (admin / admin)"
+	@echo "  Redpanda Console http://localhost:8080"
+	@echo "  MinIO console    http://localhost:9011   (minioadmin / minioadmin)"
+	@echo "  Prometheus       http://localhost:9090"
+
+down:  ## Stop the stack (keeps volumes; use `make nuke` to wipe data)
+	$(COMPOSE) down --remove-orphans
+
+nuke:  ## Stop the stack and delete all volumes (topics, database, archive)
+	$(COMPOSE) down --remove-orphans --volumes
+
+logs:  ## Tail logs of all services (SVC=name to narrow)
+	$(COMPOSE) logs -f --tail=100 $(SVC)
+
+ps:  ## Service status
+	$(COMPOSE) ps
+
+topics:  ## List topics with partition/offset info
+	$(COMPOSE) exec redpanda rpk topic list
+	$(COMPOSE) exec redpanda rpk topic describe vehicle_positions arrival_predictions -p | head -40
+
+psql:  ## Open psql against the pipeline database
+	$(COMPOSE) exec postgres psql -U $${POSTGRES_USER:-ov} -d $${POSTGRES_DB:-ov}
+
+open:  ## Open the dashboard in the browser
+	open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501
+
+.env:
+	cp .env.example .env
+	@echo "created .env from .env.example — edit if needed"
