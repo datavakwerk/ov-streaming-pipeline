@@ -1,7 +1,6 @@
 """Row parsing against a tiny fixture zip; the COPY/swap path is an integration test."""
 
 import io
-import os
 import zipfile
 from pathlib import Path
 
@@ -74,15 +73,27 @@ def test_missing_gtfs_column_is_an_error():
 
 @pytest.mark.integration
 def test_load_zip_swaps_tables_atomically_against_real_postgres():
+    """Loads into scratch copies of the ref_* tables: the live reference data is never touched."""
+    import dataclasses
+
     import psycopg
 
     from common.config import postgres_dsn
     from gtfs_static.loader import load_zip
 
-    os.environ.setdefault("POSTGRES_PORT", "5433")
+    scratch = tuple(dataclasses.replace(spec, table=f"itest_{spec.table}") for spec in SPECS)
     with psycopg.connect(postgres_dsn()) as conn:
-        counts = load_zip(conn, str(FIXTURE))
-        assert counts["ref_routes"] == 5 and counts["ref_stops"] == 5
-        assert conn.execute("SELECT count(*) FROM ref_routes").fetchone()[0] == 5
-        counts_again = load_zip(conn, str(FIXTURE))  # idempotent daily refresh
-        assert counts_again == counts
+        for spec, live in zip(scratch, SPECS, strict=True):
+            conn.execute(f"DROP TABLE IF EXISTS {spec.table}")
+            conn.execute(f"CREATE TABLE {spec.table} (LIKE {live.table} INCLUDING ALL)")
+        conn.commit()
+        try:
+            counts = load_zip(conn, str(FIXTURE), specs=scratch)
+            assert counts["itest_ref_routes"] == 5 and counts["itest_ref_stops"] == 5
+            assert conn.execute("SELECT count(*) FROM itest_ref_routes").fetchone()[0] == 5
+            counts_again = load_zip(conn, str(FIXTURE), specs=scratch)  # idempotent daily refresh
+            assert counts_again == counts
+        finally:
+            for spec in scratch:
+                conn.execute(f"DROP TABLE IF EXISTS {spec.table}")
+            conn.commit()
