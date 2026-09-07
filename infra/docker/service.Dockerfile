@@ -26,7 +26,11 @@ COPY gtfs-static/pyproject.toml gtfs-static/
 COPY dashboard/pyproject.toml dashboard/
 RUN uv sync --frozen --no-dev --no-install-workspace --package ${PACKAGE}
 
+# common, producer and archiver are also libraries: the processor's replay tool reuses the
+# GTFS-RT parser and the archive reader. All three are tiny.
 COPY common common
+COPY producer producer
+COPY archiver archiver
 COPY ${SERVICE_DIR} ${SERVICE_DIR}
 RUN uv sync --frozen --no-dev --package ${PACKAGE}
 

@@ -156,8 +156,11 @@ class Producer:
         if feed.name == "positions":
             # Ghost vehicles: OVapi keeps reporting some positions that are hours or days old
             # (seen: a bus "STOPPED_AT" the same spot for eleven days). Keep them off the map.
-            fresh_after = result.feed_timestamp.timestamp() - self.cfg.max_position_age_s
-            events = [e for e in events if e.timestamp.timestamp() >= fresh_after]
+            # Also seen: a vehicle clock 29 minutes *ahead* of the feed. Anything more than a
+            # minute in the future is a broken clock, not a prediction.
+            feed_ts = result.feed_timestamp.timestamp()
+            fresh_after = feed_ts - self.cfg.max_position_age_s
+            events = [e for e in events if fresh_after <= e.timestamp.timestamp() <= feed_ts + 60]
             result.skipped += len(result.events) - len(events)
 
         changed, stats = feed.differ.diff(events)

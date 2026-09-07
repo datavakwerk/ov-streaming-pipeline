@@ -106,3 +106,20 @@ def test_rate_limit_backs_off_instead_of_hammering():
     producer.poll_once(feed)
     assert feed.backoff_s == 120 and feed.next_due > 0
     assert publisher.events == []
+
+
+def test_positions_from_the_future_are_dropped():
+    from datetime import UTC, datetime, timedelta
+
+    from common.events import VehiclePosition
+    from producer.parse import ParseResult
+
+    feed_time = datetime(2026, 9, 6, 12, 0, tzinfo=UTC)
+    ok = VehiclePosition("v-ok", "t", "r", "OP", 52.0, 4.9, feed_time - timedelta(seconds=30))
+    ahead = VehiclePosition(
+        "v-future", "t", "r", "OP", 52.0, 4.9, feed_time + timedelta(minutes=29)
+    )
+    producer, publisher = make({"vehiclePositions.pb": b"unused"}, max_position_age_s=600)
+    producer._parse = lambda feed, body: ParseResult(feed_timestamp=feed_time, events=[ok, ahead])
+    producer.poll_once(producer.feeds[0])
+    assert [e.vehicle_id for e in publisher.events] == ["v-ok"]

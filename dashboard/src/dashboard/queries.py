@@ -27,8 +27,9 @@ def latest_window(conn: psycopg.Connection) -> tuple[datetime | None, datetime |
 
 
 def freshness(conn: psycopg.Connection) -> dict:
+    # least(): a single vehicle with a clock in the future must not make the feed look "ahead".
     row = conn.execute(
-        "SELECT extract(epoch FROM now() - max(observed_at)), count(*) FILTER "
+        "SELECT extract(epoch FROM now() - max(least(observed_at, now()))), count(*) FILTER "
         f"(WHERE observed_at > now() - interval '{FRESH_POSITIONS}') FROM vehicle_latest"
     ).fetchone()
     return {"positions_age_s": row[0], "vehicles_live": row[1]}
