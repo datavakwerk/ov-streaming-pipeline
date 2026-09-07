@@ -1,17 +1,22 @@
-"""Pretty-print `rpk topic consume --format json` output of a DLQ topic (used by make dlq-peek)."""
+"""Pretty-print `rpk topic consume --format json` output of a DLQ topic (used by make dlq-peek).
+
+rpk emits a stream of pretty-printed JSON objects (not JSON lines), so decode incrementally.
+"""
 
 import json
 import sys
 
-for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
+decoder = json.JSONDecoder()
+buf = sys.stdin.read().strip()
+pos = 0
+while pos < len(buf):
     try:
-        record = json.loads(line)
+        record, end = decoder.raw_decode(buf, pos)
     except json.JSONDecodeError:
-        print(line)
-        continue
+        break
+    pos = end
+    while pos < len(buf) and buf[pos].isspace():
+        pos += 1
     headers = {h["key"]: h.get("value", "") for h in record.get("headers", [])}
     value = record.get("value") or ""
     print(

@@ -42,6 +42,9 @@ class SnapshotDiffer[T]:
     key: Callable[[T], Hashable]
     fingerprint: Callable[[T], Hashable]
     max_age_s: float | None = 60.0
+    # A poll scheduled every 60 s lands at 59.98 s on the monotonic clock; without slack a 60 s
+    # heartbeat would fire on every *other* poll. Any poll at or past (max_age_s - jitter_s) counts.
+    jitter_s: float = 5.0
     evict_after_polls: int = 30
     clock: Callable[[], float] = time.monotonic
     _seen: dict[Hashable, _Seen] = field(default_factory=dict, init=False, repr=False)
@@ -63,7 +66,10 @@ class SnapshotDiffer[T]:
                 self._seen[k] = _Seen(fp, now, self._poll)
                 out.append(event)
                 stats.emitted += 1
-            elif self.max_age_s is not None and now - seen.emitted_at >= self.max_age_s:
+            elif (
+                self.max_age_s is not None
+                and now - seen.emitted_at >= self.max_age_s - self.jitter_s
+            ):
                 seen.emitted_at = now
                 seen.last_seen_poll = self._poll
                 out.append(event)

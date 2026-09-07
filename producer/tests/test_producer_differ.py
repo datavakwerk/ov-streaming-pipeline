@@ -38,6 +38,15 @@ def test_heartbeat_reemits_stable_keys_after_max_age():
     assert out == [("a", 1)] and stats.heartbeats == 1
 
 
+def test_heartbeat_tolerates_poll_scheduling_jitter():
+    clock = Clock()
+    differ = make(clock, max_age_s=60, jitter_s=5)
+    differ.diff([("a", 1)])
+    clock.t += 59.98  # a "60 s" poll interval as the monotonic clock actually sees it
+    out, stats = differ.diff([("a", 1)])
+    assert out == [("a", 1)] and stats.heartbeats == 1
+
+
 def test_no_heartbeat_when_disabled():
     clock = Clock()
     differ = make(clock, max_age_s=None)

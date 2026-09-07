@@ -4,7 +4,7 @@ SHELL := /bin/bash
 UV      ?= uv
 COMPOSE ?= docker compose
 
-.PHONY: help install lint fmt test test-integration ci up down nuke logs ps topics psql open dlq-peek inject-bad replay replay-dlq throughput
+.PHONY: help install lint fmt test test-integration ci up down nuke logs ps topics psql open dlq-peek inject-bad replay replay-dlq throughput keep-awake
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -62,7 +62,7 @@ psql:  ## Open psql against the pipeline database
 dlq-peek:  ## Show the newest messages on the DLQ topics with their error headers
 	@for t in dlq.vehicle_positions dlq.arrival_predictions; do \
 		echo "== $$t"; \
-		$(COMPOSE) exec -T redpanda rpk topic consume $$t -n 3 -o -3 --format json 2>/dev/null \
+		$(COMPOSE) exec -T redpanda timeout 15 rpk topic consume $$t -n 3 -o -3 --format json 2>/dev/null \
 		| uv run python scripts/dlq_peek.py || true; \
 	done
 
@@ -82,6 +82,9 @@ replay-dlq:  ## Re-decode dead letters with the current parser and re-inject the
 
 throughput:  ## Print measured throughput/lag numbers from Prometheus (for the README)
 	@uv run python scripts/throughput.py
+
+keep-awake:  ## macOS: stop the laptop from sleeping for 25h (the 24-hour run needs this)
+	caffeinate -dims -t 90000 &
 
 open:  ## Open the dashboard in the browser
 	open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501
