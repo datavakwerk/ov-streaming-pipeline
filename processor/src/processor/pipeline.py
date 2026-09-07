@@ -95,15 +95,25 @@ class Pipeline:
         self._export_gauges()
         return aggregates
 
-    def close_all(self) -> list[Aggregate]:
-        """Replay only: finalize and upsert everything still open (the input range is complete)."""
+    def close_all(self, complete_before: datetime | None = None) -> tuple[list[Aggregate], int]:
+        """Replay only: finalize everything still open because the input range is complete.
+
+        Windows that extend past ``complete_before`` (the end of the replayed range) only saw
+        part of their data; writing them would overwrite a complete row with a partial one, so
+        they are dropped and counted instead. Returns (written aggregates, partial windows skipped).
+        """
         aggregates = self.windower.close_all()
+        skipped = 0
+        if complete_before is not None:
+            kept = [a for a in aggregates if a.key.window_end <= complete_before]
+            skipped = len(aggregates) - len(kept)
+            aggregates = kept
         if aggregates:
             self.sink.upsert_aggregates(aggregates)
             for agg in aggregates:
                 metrics.WINDOWS_FINALIZED.labels(agg.key.dimension).inc()
         self._export_gauges()
-        return aggregates
+        return aggregates, skipped
 
     def _export_gauges(self) -> None:
         stats = self.windower.stats  # the pure engine counts; we mirror deltas into Prometheus
