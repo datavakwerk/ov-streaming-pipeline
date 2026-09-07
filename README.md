@@ -10,7 +10,9 @@ station, operator and network, Postgres serves them, and a live dashboard draws 
 
 *Monday 08:24, 4 616 vehicles on the road. Colour = current delay of the trip; faint discs are
 station hotspots from the last window. Right: worst lines in the last finalized window, with GTFS
-route colours. The same page at [00:40 on a Sunday night](docs/img/dashboard-night.png) shows 535.*
+route colours. The same page at [00:40 on a Sunday night](docs/img/dashboard-night.png) shows 535.
+Further down: [network trend, per-operator bars, delay distribution and the pipeline health
+strip](docs/img/dashboard-detail.png).*
 
 ---
 
@@ -215,7 +217,9 @@ over history.
   still-failing ones stay put and are summarised by reason.
 * `make replay FROM=… TO=…` re-processes raw archive files for a range through the identical
   `Pipeline` class the consumer uses — replay is not a second implementation — deduplicating by
-  `(topic, partition, offset)`.
+  `(topic, partition, offset)`. Measured: 122 364 archived messages from a 12-minute morning-peak
+  range recomputed into 11 323 windows in about ten seconds. A window the range only partially
+  covers is skipped rather than overwritten with partial data (`--include-partial` to override).
 
 ## Data source quirks worth knowing
 

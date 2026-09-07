@@ -134,8 +134,8 @@ def test_same_broken_entity_with_a_new_timestamp_is_not_dead_lettered_again():
     feed = producer.feeds[0]
     for poll in range(3):  # the feed re-sends the entity every poll with fresh bytes
         err = ParseError("2026-09-06:BAD:1:1", "vehicle without position", raw=bytes([poll]))
-        producer._parse = lambda f, body, err=err: ParseResult(
-            feed_timestamp=datetime(2026, 9, 6, 12, poll, tzinfo=UTC), errors=[err]
+        producer._parse = lambda f, body, err=err, minute=poll: ParseResult(
+            feed_timestamp=datetime(2026, 9, 6, 12, minute, tzinfo=UTC), errors=[err]
         )
         producer.poll_once(feed)
     assert len(publisher.dead) == 1
