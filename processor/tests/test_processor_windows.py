@@ -144,3 +144,14 @@ def test_idle_partition_stops_holding_the_watermark_back():
     clock.t = 62
     w.add(at(400), "line", "L1", 1, source=("p", 1))  # it speaks again, behind: counted late
     assert w.stats.late == 1
+
+
+def test_close_all_finalizes_open_windows_for_finite_replay():
+    w = TumblingWindower(300, 120)
+    w.add(at(10), "line", "L1", 5)
+    w.add(at(310), "line", "L1", 7)
+    assert w.pop_finalized() == []  # watermark has not passed either window
+    aggs = w.close_all()
+    assert [a.key.window_start for a in aggs] == [T0, at(300)]
+    assert w.open_windows() == 0 and w.stats.finalized == 2
+    assert w.add(at(20), "line", "L1", 1) is False  # closed windows stay closed

@@ -133,6 +133,19 @@ class TumblingWindower:
         self.stats.finalized += len(out)
         return out
 
+    def close_all(self) -> list[Aggregate]:
+        """Finalize every open window regardless of the watermark.
+
+        Only for finite inputs (replay of a closed time range): nothing more is coming, so
+        waiting for lateness would just lose the last windows.
+        """
+        keys = sorted(self._open, key=lambda k: k.window_start)
+        out = [self._open.pop(k).finalize(k) for k in keys]
+        self.stats.finalized += len(out)
+        if out:
+            self._raise_watermark(max(a.key.window_end for a in out))
+        return out
+
     def open_windows(self) -> int:
         return len(self._open)
 

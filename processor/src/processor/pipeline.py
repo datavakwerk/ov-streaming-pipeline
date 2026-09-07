@@ -95,6 +95,16 @@ class Pipeline:
         self._export_gauges()
         return aggregates
 
+    def close_all(self) -> list[Aggregate]:
+        """Replay only: finalize and upsert everything still open (the input range is complete)."""
+        aggregates = self.windower.close_all()
+        if aggregates:
+            self.sink.upsert_aggregates(aggregates)
+            for agg in aggregates:
+                metrics.WINDOWS_FINALIZED.labels(agg.key.dimension).inc()
+        self._export_gauges()
+        return aggregates
+
     def _export_gauges(self) -> None:
         stats = self.windower.stats  # the pure engine counts; we mirror deltas into Prometheus
         metrics.LATE.inc(stats.late - self._reported["late"])

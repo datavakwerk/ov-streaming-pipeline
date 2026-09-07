@@ -61,7 +61,8 @@ def replay_archive(
         sink,
     )
 
-    stats = {"objects": 0, "messages": 0, "duplicates": 0, "decode_errors": 0, "windows": 0}
+    stats: dict = {"objects": 0, "messages": 0, "duplicates": 0, "decode_errors": 0, "windows": 0}
+    per_topic: dict[str, int] = dict.fromkeys(topics, 0)
     seen: set[tuple[str, int, int]] = set()
     for topic in topics:
         for hour in _hours(start, end):
@@ -79,6 +80,7 @@ def replay_archive(
                         continue
                     seen.add(ident)
                     stats["messages"] += 1
+                    per_topic[topic] += 1
                     try:
                         event = decode(raw.payload)
                     except SchemaError:
@@ -88,10 +90,12 @@ def replay_archive(
                 log.info("%s: %d messages so far", key.rsplit("/", 1)[-1], stats["messages"])
     pipeline.flush_state()
     pipeline.finalize()
-    # Close everything that is still open: the range is finite, nothing more is coming.
-    pipeline.windower.advance_to(end + timedelta(seconds=lateness_s + window_s + 1))
-    stats["windows"] += len(pipeline.finalize())
-    stats["windows"] += pipeline.windower.stats.finalized - stats["windows"]
+    # The range is finite and fully read: close every window that is still open. Waiting for the
+    # watermark here would only lose the last few windows of the range.
+    pipeline.close_all()
+    stats["windows"] = pipeline.windower.stats.finalized
+    stats["late"] = pipeline.windower.stats.late
+    stats["per_topic"] = per_topic
     sink.close()
     return stats
 
