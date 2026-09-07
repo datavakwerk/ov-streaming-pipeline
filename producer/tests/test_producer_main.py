@@ -123,3 +123,19 @@ def test_positions_from_the_future_are_dropped():
     producer._parse = lambda feed, body: ParseResult(feed_timestamp=feed_time, events=[ok, ahead])
     producer.poll_once(producer.feeds[0])
     assert [e.vehicle_id for e in publisher.events] == ["v-ok"]
+
+
+def test_same_broken_entity_with_a_new_timestamp_is_not_dead_lettered_again():
+    from datetime import UTC, datetime
+
+    from producer.parse import ParseError, ParseResult
+
+    producer, publisher = make({"vehiclePositions.pb": b"unused"})
+    feed = producer.feeds[0]
+    for poll in range(3):  # the feed re-sends the entity every poll with fresh bytes
+        err = ParseError("2026-09-06:BAD:1:1", "vehicle without position", raw=bytes([poll]))
+        producer._parse = lambda f, body, err=err: ParseResult(
+            feed_timestamp=datetime(2026, 9, 6, 12, poll, tzinfo=UTC), errors=[err]
+        )
+        producer.poll_once(feed)
+    assert len(publisher.dead) == 1

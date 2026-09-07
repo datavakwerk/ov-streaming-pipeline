@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import signal
 import threading
+from datetime import UTC, datetime, timedelta
 
 from confluent_kafka import Consumer
 
@@ -29,8 +30,11 @@ def main() -> None:
     )
     newest = sink.newest_window_end()
     if newest is not None:
-        windower.seed_watermark(newest)
-        log.info("watermark seeded from postgres: %s", newest.isoformat())
+        # Clamp: a window written by a replay could end after "now"; seeding past the wall clock
+        # would make every live event late until that time.
+        seed = min(newest, datetime.now(tz=UTC) - timedelta(seconds=windower.allowed_lateness_s))
+        windower.seed_watermark(seed)
+        log.info("watermark seeded from postgres: %s (newest window end %s)", seed, newest)
     pipeline = Pipeline(windower, sink)
     loop = ProcessorLoop(
         Consumer(consumer_config(bootstrap, env("CONSUMER_GROUP", "processor"))),

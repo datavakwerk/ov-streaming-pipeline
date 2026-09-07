@@ -60,7 +60,7 @@ class Feed:
     # Parse errors repeat on every snapshot too; one DLQ message per distinct (entity, reason).
     error_differ: SnapshotDiffer = field(
         default_factory=lambda: SnapshotDiffer(
-            key=lambda e: e.entity_id, fingerprint=lambda e: (e.reason, e.raw), max_age_s=None
+            key=lambda e: e.entity_id, fingerprint=lambda e: e.reason, max_age_s=None
         )
     )
     next_due: float = 0.0

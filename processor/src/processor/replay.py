@@ -37,7 +37,12 @@ def _hours(start: datetime, end: datetime):
 
 
 def replay_archive(
-    start: datetime, end: datetime, topics: list[str], window_s: int, lateness_s: int
+    start: datetime,
+    end: datetime,
+    topics: list[str],
+    window_s: int,
+    lateness_s: int,
+    include_partial: bool = False,
 ) -> dict:
     from archiver.sink import RawMessage, S3Store
     from processor.pipeline import Pipeline
@@ -92,8 +97,9 @@ def replay_archive(
     pipeline.finalize()
     # The range is finite and fully read: close every window that is still open. Waiting for the
     # watermark here would only lose the last few windows of the range.
-    pipeline.close_all()
-    stats["windows"] = pipeline.windower.stats.finalized
+    _, partial = pipeline.close_all(complete_before=None if include_partial else end)
+    stats["windows"] = pipeline.windower.stats.finalized - partial
+    stats["partial_windows_skipped"] = partial
     stats["late"] = pipeline.windower.stats.late
     stats["per_topic"] = per_topic
     sink.close()
@@ -227,6 +233,11 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument(
         "--lateness-seconds", type=int, default=int(env("ALLOWED_LATENESS_SECONDS", "120"))
     )
+    a.add_argument(
+        "--include-partial",
+        action="store_true",
+        help="also write the last window even if --to cuts through it (default: skip it)",
+    )
     d = sub.add_parser("dlq", help="re-decode dead letters and re-inject the fixable ones")
     d.add_argument("--source-topic", action="append", choices=TOPICS, help="default: both topics")
     d.add_argument("--dry-run", action="store_true")
@@ -239,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
             args.topic or list(TOPICS),
             args.window_seconds,
             args.lateness_seconds,
+            include_partial=args.include_partial,
         )
     else:
         stats = replay_dlq(
