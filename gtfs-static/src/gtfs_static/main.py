@@ -73,7 +73,18 @@ def download(url: str, dest: Path, if_modified_since: str | None) -> str | None:
 def load_once(conn: psycopg.Connection, url: str, cache: Path, force: bool) -> bool:
     started = time.monotonic()
     previous = None if force else _meta_get(conn, "gtfs_last_modified")
-    last_modified = download(url, cache, previous)
+    try:
+        last_modified = download(url, cache, previous)
+    except httpx.HTTPError as exc:
+        # OVapi rate-limits (429) and has bad days. A cached zip beats no reference data: load it
+        # now and try the download again on the next refresh.
+        if not cache.exists():
+            raise
+        log.warning("download failed (%s); loading the cached zip %s instead", exc, cache)
+        last_modified = None
+        LOADS.labels("download_failed").inc()
+        if not _meta_get(conn, "gtfs_loaded_at"):
+            previous = previous or "cached"
     if last_modified is None and _meta_get(conn, "gtfs_loaded_at"):
         log.info("static GTFS unchanged since %s; nothing to do", previous)
         LOADS.labels("unchanged").inc()
