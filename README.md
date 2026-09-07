@@ -1,6 +1,6 @@
 # Real-time NL OV Streaming Pipeline
 
-![tests](https://img.shields.io/badge/tests-101%20passing-2DD4BF) ![lint](https://img.shields.io/badge/ruff-clean-2DD4BF) ![python](https://img.shields.io/badge/python-3.12-3776AB) ![kafka](https://img.shields.io/badge/kafka%20API-Redpanda-E14226) ![local](https://img.shields.io/badge/runs-100%25%20local-informational)
+![tests](https://img.shields.io/badge/tests-106%20passing-2DD4BF) ![lint](https://img.shields.io/badge/ruff-clean-2DD4BF) ![python](https://img.shields.io/badge/python-3.12-3776AB) ![kafka](https://img.shields.io/badge/kafka%20API-Redpanda-E14226) ![local](https://img.shields.io/badge/runs-100%25%20local-informational)
 
 Every vehicle in Dutch public transport, streamed live: OVapi's GTFS-realtime feeds go through
 Kafka (Redpanda), a windowed stream processor computes exact 5-minute delay aggregates per line,
@@ -82,7 +82,7 @@ Host ports 5433 (Postgres) and 9010/9011 (MinIO) were chosen to avoid the usual 
 override them in `.env`. Everything else is in `.env.example`, which `make up` copies to `.env`.
 
 ```bash
-make test               # 101 unit tests: parsing on recorded fixtures, windows, sink, differ, ... (no broker needed)
+make test               # 106 unit tests: parsing on recorded fixtures, windows, sink, differ, ... (no broker needed)
 make test-integration   # duplicate-delivery test and query tests against the running stack
 make inject-bad         # publish two poison messages -> watch them land in the DLQ
 make dlq-peek           # newest dead letters with their error headers
@@ -105,18 +105,20 @@ no operator filter. `make throughput` prints the table for any range (`RANGE=24h
 | Conditional GET | not honoured (always 200); polling faster than ~10 s earns an HTTP 429 |
 | Reference join rate | 99 % of live trip ids, route ids and stop ids resolve against static GTFS |
 
-| Pipeline (evening → morning) | |
+| Pipeline, Monday morning peak 08:15–09:15 Europe/Amsterdam (`RANGE=1h make throughput`) | |
 |---|---|
-| Messages in, sustained | 50–110 msg/s (positions ≈ 1 change per vehicle per minute; predictions heartbeat every minute) |
-| Messages in, peak | 178 msg/s (a fresh snapshot after a poll gap) |
-| Snapshot differ | suppresses 30–95 % of feed entities depending on how fast vehicles report |
-| Windows finalized | ~220 per 5 minutes evening (line + station + operator + network), ~1 500 in the peak |
-| Consumer lag | 0–200 messages in steady state; a 40-minute backlog was replayed at 1 400 msg/s |
-| Watermark lag (now − event-time watermark) | ~175 s steady: 120 s allowed lateness + ~60 s feed cadence |
-| Batch processing p95 | 0.23 s for a 2 000-message poll batch, including the state-table upserts |
+| Messages in, average | **176 msg/s** (positions ≈ 1 change per vehicle per minute + predictions heartbeat every minute) |
+| Messages in, peak minute | 347 msg/s (a fresh snapshot right after a poll) |
+| Messages processed, average | 198 msg/s (includes catching up after a restart) |
+| Feed entities per positions poll | 3 625 vehicles; the snapshot differ suppressed 45 % of entities |
+| Windows finalized | 2 739 per 5 minutes (line + station + operator + network); 6 994 windows open at once |
+| Consumer lag | p50 **0**, max 3 806 messages right after a processor restart, drained within a minute |
+| Watermark lag (now − event-time watermark) | 170 s: 120 s allowed lateness + ~50 s feed cadence |
+| Batch processing p95 | 0.18 s for a 2 000-message poll batch, including the state-table upserts |
 | Window upsert p95 | 0.24 s for a batch of ~500 finalized windows |
-| Late events dropped | 0 in steady state (see the watermark section for the catch-up story) |
-| Raw archive | ~1 MB gzipped per hour at night; ~10 MB/h in the peak |
+| Raw archive | 718 objects, 30 MB gzipped per hour in the peak; ~1 MB/h at night |
+| Late events dropped | 0 since the last restart; 130 k earlier in the hour from one restart that seeded the watermark from a window written by an in-progress replay, which is why the seed is now clamped to the wall clock |
+| Evening reference (Sunday 23:30) | 50–110 msg/s in, ~220 windows per 5 minutes, 1 400 vehicles |
 
 ### The 24-hour run
 
@@ -285,7 +287,7 @@ ov-streaming-pipeline/
 
 ## Testing
 
-* `make test` — 101 unit tests, no infrastructure: parser against recorded feeds (including a
+* `make test` — 106 unit tests, no infrastructure: parser against recorded feeds (including a
   mixed-quality and a garbage fixture), serde round-trips and every `SchemaError` path, the
   snapshot differ, window assignment / lateness / duplicates / per-partition watermarks, the
   hand-computed window, sink idempotency with a recording fake, DLQ headers, the offset ledger,
