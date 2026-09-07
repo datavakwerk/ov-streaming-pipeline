@@ -176,7 +176,8 @@ panels = [
     ),
     stat(
         "DLQ / h",
-        "sum(increase(processor_dlq_total[1h])) + sum(increase(producer_dlq_total[1h]))",
+        "(sum(increase(processor_dlq_total[1h])) or vector(0)) "
+        "+ (sum(increase(producer_dlq_total[1h])) or vector(0))",
         x=16,
         y=0,
         thresholds=green_amber_red(50, 500),
@@ -184,7 +185,7 @@ panels = [
     ),
     stat(
         "Late events / h",
-        "sum(increase(processor_late_events_total[1h]))",
+        "sum(increase(processor_late_events_total[1h])) or vector(0)",
         x=20,
         y=0,
         thresholds=green_amber_red(1000, 10000),

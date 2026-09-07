@@ -354,6 +354,7 @@ def operators_figure(ops: pd.DataFrame) -> go.Figure:
             marker_color=[hex_for(v) for v in d["mean_s"]],
             text=[fmt_delay(v) for v in d["mean_s"]],
             textposition="outside",
+            cliponaxis=False,
             textfont={"family": "JetBrains Mono, monospace", "size": 11},
             customdata=d[["n", "p90_s"]].to_numpy(),
             hovertemplate="%{y}<br>mean %{x:.1f} min · P90 %{customdata[1]:.0f}s · n=%{customdata[0]}<extra></extra>",
@@ -362,7 +363,7 @@ def operators_figure(ops: pd.DataFrame) -> go.Figure:
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin={"l": 8, "r": 40, "t": 4, "b": 8},
+        margin={"l": 8, "r": 70, "t": 4, "b": 8},
         height=330,
         xaxis={"title": "mean delay (min)", "gridcolor": "rgba(36,48,85,.6)", "zeroline": False},
         yaxis={"tickfont": {"size": 11}},
@@ -519,7 +520,7 @@ def live_view(
     with left:
         deck = build_map(vehicles, data["stations"], show_stations, point_size)
         try:
-            st.pydeck_chart(deck, use_container_width=True, height=640)
+            st.pydeck_chart(deck, width="stretch", height=640)
         except TypeError:
             st.pydeck_chart(deck, use_container_width=True)
         st.markdown(legend_html(), unsafe_allow_html=True)
@@ -534,39 +535,32 @@ def live_view(
             unsafe_allow_html=True,
         )
 
-    st.markdown("<div style='height:.6rem'></div>", unsafe_allow_html=True)
-    st.markdown(
-        "<div class='ov-panel'><h4>Network delay · last 3 hours, 5-minute tumbling windows</h4>",
-        unsafe_allow_html=True,
-    )
-    st.plotly_chart(
-        trend_figure(data["trend"]), use_container_width=True, config={"displayModeBar": False}
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(
+            "<h4 class='ov-h'>Network delay · last 3 hours, 5-minute tumbling windows</h4>",
+            unsafe_allow_html=True,
+        )
+        st.plotly_chart(
+            trend_figure(data["trend"]), width="stretch", config={"displayModeBar": False}
+        )
 
     c1, c2 = st.columns(2, gap="medium")
-    with c1:
+    with c1, st.container(border=True):
         st.markdown(
-            f"<div class='ov-panel'><h4>Operators · mean delay, {esc(window_label(ws, we))}</h4>",
+            f"<h4 class='ov-h'>Operators · mean delay, {esc(window_label(ws, we))}</h4>",
             unsafe_allow_html=True,
         )
         st.plotly_chart(
-            operators_figure(data["operators"]),
-            use_container_width=True,
-            config={"displayModeBar": False},
+            operators_figure(data["operators"]), width="stretch", config={"displayModeBar": False}
         )
-        st.markdown("</div>", unsafe_allow_html=True)
-    with c2:
+    with c2, st.container(border=True):
         st.markdown(
-            "<div class='ov-panel'><h4>Delay distribution · active trips right now</h4>",
+            "<h4 class='ov-h'>Delay distribution · active trips right now</h4>",
             unsafe_allow_html=True,
         )
         st.plotly_chart(
-            histogram_figure(data["hist"]),
-            use_container_width=True,
-            config={"displayModeBar": False},
+            histogram_figure(data["hist"]), width="stretch", config={"displayModeBar": False}
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(ops_strip(load_ops()), unsafe_allow_html=True)
     st.caption(

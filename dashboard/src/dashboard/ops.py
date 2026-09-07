@@ -8,8 +8,10 @@ QUERIES = {
     "msg_in_per_s": "sum(rate(producer_published_total[2m]))",
     "msg_processed_per_s": "sum(rate(processor_messages_total[2m]))",
     "consumer_lag": "sum(processor_consumer_lag)",
-    "dlq_1h": "sum(increase(processor_dlq_total[1h])) + sum(increase(producer_dlq_total[1h]))",
-    "late_1h": "sum(increase(processor_late_events_total[1h]))",
+    # `or vector(0)`: a counter with no samples yet must read 0, not make the whole sum empty.
+    "dlq_1h": "(sum(increase(processor_dlq_total[1h])) or vector(0)) "
+    "+ (sum(increase(producer_dlq_total[1h])) or vector(0))",
+    "late_1h": "sum(increase(processor_late_events_total[1h])) or vector(0)",
     "windows_1h": "sum(increase(processor_windows_finalized_total[1h]))",
     "watermark_lag_s": "processor_watermark_lag_seconds",
     "archive_objects_1h": "sum(increase(archiver_objects_total[1h]))",

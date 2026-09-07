@@ -278,7 +278,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(processor_dlq_total[1h])) + sum(increase(producer_dlq_total[1h]))",
+          "expr": "(sum(increase(processor_dlq_total[1h])) or vector(0)) + (sum(increase(producer_dlq_total[1h])) or vector(0))",
           "legendFormat": "",
           "refId": "K"
         }
@@ -342,7 +342,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(processor_late_events_total[1h]))",
+          "expr": "sum(increase(processor_late_events_total[1h])) or vector(0)",
           "legendFormat": "",
           "refId": "M"
         }

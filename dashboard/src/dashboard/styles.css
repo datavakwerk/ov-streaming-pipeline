@@ -216,3 +216,18 @@ div[data-testid="stSidebar"] {
   background:var(--ov-panel);
   border-right:1px solid var(--ov-border);
 }
+
+/* Streamlit bordered containers styled like our own panels */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+  background: var(--ov-panel);
+  border: 1px solid var(--ov-border) !important;
+  border-radius: 14px;
+}
+h4.ov-h {
+  margin: 0 0 .2rem;
+  font-size: .8rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ov-muted);
+  font-weight: 600;
+}

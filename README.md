@@ -8,8 +8,9 @@ station, operator and network, Postgres serves them, and a live dashboard draws 
 
 ![Live dashboard: map of vehicles coloured by delay, KPI tiles, worst lines and stations](docs/img/dashboard.png)
 
-*Sunday 00:40, 535 vehicles on the road. Colour = current delay of the trip. Right: worst lines in
-the last finalized window, with GTFS route colours.*
+*Monday 08:24, 4 616 vehicles on the road. Colour = current delay of the trip; faint discs are
+station hotspots from the last window. Right: worst lines in the last finalized window, with GTFS
+route colours. The same page at [00:40 on a Sunday night](docs/img/dashboard-night.png) shows 535.*
 
 ---
 
@@ -116,6 +117,12 @@ no operator filter. `make throughput` prints the table for any range (`RANGE=24h
 | Raw archive | ~1 MB gzipped per hour at night; ~10 MB/h in the peak |
 
 ### The 24-hour run
+
+![Grafana: throughput, consumer lag, watermark lag, DLQ rate, late events, windows finalized, state and archive panels](docs/img/grafana.png)
+
+*The provisioned Grafana dashboard after the first night. The sawtooth in "event-time watermark
+lag" and the hourly spikes in "windows finalized" are not the pipeline: they are the laptop's
+hourly maintenance wake-ups while it slept (see below). Consumer lag stayed at zero throughout.*
 
 The Definition of Done asks for a 24-hour continuous run with an annotated Grafana screenshot.
 The stack has been running continuously since 2026-09-06 21:30 UTC; the annotated screenshot
